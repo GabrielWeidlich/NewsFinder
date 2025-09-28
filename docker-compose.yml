@@ -24,6 +24,19 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+  crawler:
+    build: .  # Constrói a imagem a partir do Dockerfile na pasta atual
+    container_name: newsfinder_crawler
+    env_file:
+      - .env
+    volumes:
+      - .:/app  # Espelha o código local para dentro do contêiner, facilitando o desenvolvimento
+    networks:
+      - newsfinder_net
+    depends_on:
+      database:
+        condition: service_healthy # Garante que o crawler só inicie depois que o banco de dados estiver pronto
+    restart: on-failure
 
 volumes:
   postgres_data:
