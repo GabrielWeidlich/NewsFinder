@@ -1,5 +1,5 @@
-from .command import Command
-from strategies.crawling_strategy import CrawlingStrategy
+from src.crawler.commands.command import Command
+from src.strategies.crawling_strategy import CrawlingStrategy
 
 class CrawlCommand(Command):
     """

@@ -1,6 +1,6 @@
 import asyncio
 from typing import Dict, List
-from .crawling_strategy import CrawlingStrategy
+from src.strategies.crawling_strategy import CrawlingStrategy
 from pyppeteer import launch
 
 class G1Strategy(CrawlingStrategy):
@@ -13,7 +13,7 @@ class G1Strategy(CrawlingStrategy):
 
     async def crawl(self) -> List[Dict[str, str]]:
         print("Iniciando crawling no G1...")
-        browser = await launch()
+        browser = await launch(args=['--no-sandbox'])
         page = await browser.newPage()
         await page.goto(self.url)
 

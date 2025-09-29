@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
     POSTGRES_PORT: int
-    POSTGRES_HOST: str
+    POSTGRES_HOST: str = "database"
 
     # --- Development Mode ---
     DEV_MODE: bool = False

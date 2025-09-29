@@ -57,4 +57,4 @@ RUN uv pip install --no-cache --system -e .
 COPY . .
 
 # 7. Comando para rodar a aplicação quando o contêiner iniciar
-CMD ["python", "src/main.py"]
+CMD ["python", "-m", "src.main"]

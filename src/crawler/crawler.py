@@ -1,4 +1,4 @@
-from .commands.command import Command
+from src.crawler.commands.command import Command
 
 class Crawler:
     """
