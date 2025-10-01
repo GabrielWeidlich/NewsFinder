@@ -1,33 +1,29 @@
 import asyncio
-from typing import Dict, List
-from src.strategies.crawling_strategy import CrawlingStrategy
-from pyppeteer import launch
+from src.steps import *
 
-class G1Strategy(CrawlingStrategy):
-    """
-    Implementa a estratégia de crawling para o site G1.
-    """
-
-    def __init__(self, url: str = "https://g1.globo.com/"):
-        self.url = url
-
-    async def crawl(self) -> List[Dict[str, str]]:
-        print("Iniciando crawling no G1...")
-        browser = await launch(args=['--no-sandbox'])
-        page = await browser.newPage()
-        await page.goto(self.url)
-
-        # Exemplo: extrai os títulos das notícias da página inicial do G1
-        # IMPORTANTE: Este seletor CSS pode mudar. Ajuste conforme necessário.
-        news_elements = await page.querySelectorAll('.feed-post-link')
+class G1():
+    def __init__(self, browser):
+        self.browser = browser
+        self.base_url = "https://g1.globo.com/"
+        self.links = []
         
-        news_list = []
-        for element in news_elements:
-            title = await page.evaluate('(element) => element.textContent', element)
-            link = await page.evaluate('(element) => element.href', element)
-            news_list.append({"title": title, "link": link})
-
-        await browser.close()
-        print(f"Encontradas {len(news_list)} notícias no G1.")
-        return news_list
-    
+        self.getLinksSteps = [
+            # Passo para ir para a URL principal do G1
+            GoToURLStep(browser=self.browser, url=self.base_url),
+            # Passo para pegar os links das notícias usando um seletor CSS
+            GetLinksStep(browser=self.browser, selector="a.feed-post-link") 
+        ]
+        self.getContentByLinks = []
+        
+        
+    async def run(self):
+        for step in self.getLinksSteps:
+            if isinstance(step, GetLinksStep): #trocar get links para a classe que vai pegar os links
+                self.links = await step.run()
+            else:
+                await step.run()
+                
+        print(f"Links encontrados: {self.links}")
+        # for step in self.getContentByLinks:
+        #     await step.run()
+            

@@ -1,58 +1,80 @@
 import asyncio
+import pyppeteer
 import traceback
-from src.crawler.crawler import Crawler
-from src.strategies.g1_strategy import G1Strategy
-from src.crawler.commands.crawl_command import CrawlCommand
-# ... e as importações do banco de dados
-from database.setup import get_db
-from database.models.news import News
 from sqlalchemy.exc import IntegrityError
 
+from src.strategies.g1_strategy import G1
+from src.database.setup import get_db
+from src.database.models.news import News
+
 async def main():
-    db_session = None
+    """
+    Função principal que orquestra o processo de crawling e armazenamento de notícias.
+    """
+    browser = None
+    db_session = next(get_db())
+    
     try:
-        crawler = Crawler()
-        g1_strategy = G1Strategy()
-        crawl_g1_command = CrawlCommand(g1_strategy)
+        print("--- Iniciando o Crawler ---")
+        browser = await pyppeteer.launch(
+            headless=True,  # Mude para False se quiser ver o navegador abrindo
+            args=['--no-sandbox']
+        )
+        page = await browser.newPage()
+
+        # 1. Executa a estratégia de crawling para o G1
+        g1_strategy = G1(page)
+        await g1_strategy.run()
         
-        crawler.set_command(crawl_g1_command)
-        news_list = await crawler.run()
+        # news_list = g1_strategy.links
+        
+        # if not news_list:
+        #     print("Nenhuma notícia encontrada.")
+        #     return
 
-        if not news_list:
-            print("Nenhuma notícia encontrada.")
-            return
+        # print("\n--- Notícias Coletadas ---")
+        # for i, link in enumerate(news_list, 1):
+        #     print(f"  {i}. Link: {link}")
 
-        print(f"\n--- {len(news_list)} Notícias Coletadas ---")
-        for item in news_list:
-            print(f"  - Título: {item['title']}")
-            print(f"    Link: {item['link']}")
+        # # 2. Salva as notícias no banco de dados
+        # print("\n--- A salvar no Banco de Dados ---")
+        # saved_count = 0
+        # for link_url in news_list:
+        #     # Simplificação: Usando o próprio link como título por enquanto
+        #     # O ideal seria extrair o título real na estratégia de crawling
+        #     news_article = News(
+        #         title=f"Notícia de {link_url}", 
+        #         link=link_url,
+        #         content="" # O conteúdo pode ser extraído em um passo futuro
+        #     )
+            
+        #     try:
+        #         db_session.add(news_article)
+        #         db_session.commit()
+        #         db_session.refresh(news_article)
+        #         saved_count += 1
+        #     except IntegrityError:
+        #         # Ignora erros de integridade (links duplicados) e continua
+        #         db_session.rollback()
+        #     except Exception as e:
+        #         print(f"Erro ao salvar notícia {link_url}: {e}")
+        #         db_session.rollback()
 
-        # Lógica para salvar no banco de dados
-        print("\n--- A salvar no Banco de Dados ---")
-        db_session = next(get_db())
-        saved_count = 0
-        for item in news_list:
-            news_article = News(
-                title=item['title'],
-                link=item['link']
-            )
-            db_session.add(news_article)
-            try:
-                db_session.commit()
-                saved_count += 1
-                db_session.refresh(news_article) # Atualiza o objeto após o commit
-            except IntegrityError:
-                db_session.rollback() # Desfaz se o link já existir
-
-        print(f"--- {saved_count} novas notícias salvas com sucesso! ---")
+        # print(f"\n--- {saved_count} novas notícias salvas com sucesso! ---")
 
     except Exception as e:
-        print("Ocorreu um erro ao executar o crawler:")
+        print(f"\nOcorreu um erro ao executar o crawler: {e}")
         print(traceback.format_exc())
+        
     finally:
-        # Garante que a sessão com o banco seja fechada
-        if db_session:
-            db_session.close()
+        # 3. Fecha os recursos
+        if browser:
+            await browser.close()
+        # if db_session:
+        #     db_session.close()
+        # print("\n--- Crawler finalizado ---")
+
 
 if __name__ == "__main__":
+    # Executa a função principal assíncrona
     asyncio.run(main())

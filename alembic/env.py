@@ -4,10 +4,10 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
-from database.setup import Base
-import database.models  # Import all models to register them with Base
+from src.database.setup import Base
+import src.database.models  # Import all models to register them with Base
 
-from config import settings
+from src.config import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
