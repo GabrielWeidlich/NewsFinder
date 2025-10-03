@@ -24,6 +24,15 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+  browser:
+    image: browserless/chrome
+    container_name: newsfinder_browser
+    ports:
+      # A porta 3000 é para o debug ao vivo, e a 3001 para o VNC
+      - "3000:3000"
+    networks:
+      - newsfinder_net
+    restart: on-failure
   crawler:
     build: .  # Constrói a imagem a partir do Dockerfile na pasta atual
     container_name: newsfinder_crawler

@@ -15,52 +15,51 @@ async def main():
     db_session = next(get_db())
     
     try:
-        print("--- Iniciando o Crawler ---")
-        browser = await pyppeteer.launch(
-            headless=True,  # Mude para False se quiser ver o navegador abrindo
-            args=['--no-sandbox']
+        print("A conectar-se ao browser remoto...")
+        browser = await pyppeteer.connect(
+            browserURL="http://browser:3000"
         )
-        page = await browser.newPage()
+        print("Conectado com sucesso!")
 
+        page = await browser.newPage()
+        
         # 1. Executa a estratégia de crawling para o G1
         g1_strategy = G1(page)
         await g1_strategy.run()
         
-        # news_list = g1_strategy.links
+        # --- CÓDIGO CORRIGIDO E DESCOMENTADO ABAIXO ---
+
+        # Aceder aos dados recolhidos pela estratégia
+        news_list_data = g1_strategy.news_data
         
-        # if not news_list:
-        #     print("Nenhuma notícia encontrada.")
-        #     return
+        if not news_list_data:
+            print("Nenhuma notícia foi extraída com sucesso.")
+            return
 
-        # print("\n--- Notícias Coletadas ---")
-        # for i, link in enumerate(news_list, 1):
-        #     print(f"  {i}. Link: {link}")
-
-        # # 2. Salva as notícias no banco de dados
-        # print("\n--- A salvar no Banco de Dados ---")
-        # saved_count = 0
-        # for link_url in news_list:
-        #     # Simplificação: Usando o próprio link como título por enquanto
-        #     # O ideal seria extrair o título real na estratégia de crawling
-        #     news_article = News(
-        #         title=f"Notícia de {link_url}", 
-        #         link=link_url,
-        #         content="" # O conteúdo pode ser extraído em um passo futuro
-        #     )
+        # 2. Salva as notícias no banco de dados
+        print("\n--- A salvar no Banco de Dados ---")
+        saved_count = 0
+        for news_data in news_list_data:
+            # Cria um objeto News com o título, link e resumo extraídos
+            news_article = News(
+                title=news_data.get("title", "Título não encontrado"), 
+                link=news_data.get("link"),
+                summary=news_data.get("content", "")
+            )
             
-        #     try:
-        #         db_session.add(news_article)
-        #         db_session.commit()
-        #         db_session.refresh(news_article)
-        #         saved_count += 1
-        #     except IntegrityError:
-        #         # Ignora erros de integridade (links duplicados) e continua
-        #         db_session.rollback()
-        #     except Exception as e:
-        #         print(f"Erro ao salvar notícia {link_url}: {e}")
-        #         db_session.rollback()
+            try:
+                db_session.add(news_article)
+                db_session.commit()
+                db_session.refresh(news_article)
+                saved_count += 1
+            except IntegrityError:
+                # Ignora erros de links duplicados e continua
+                db_session.rollback()
+            except Exception as e:
+                print(f"Erro ao salvar notícia {news_data.get('link')}: {e}")
+                db_session.rollback()
 
-        # print(f"\n--- {saved_count} novas notícias salvas com sucesso! ---")
+        print(f"\n--- {saved_count} novas notícias salvas com sucesso! ---")
 
     except Exception as e:
         print(f"\nOcorreu um erro ao executar o crawler: {e}")
@@ -69,12 +68,11 @@ async def main():
     finally:
         # 3. Fecha os recursos
         if browser:
-            await browser.close()
-        # if db_session:
-        #     db_session.close()
-        # print("\n--- Crawler finalizado ---")
+            await browser.disconnect() # Usa disconnect para o browser remoto
+        if db_session:
+            db_session.close()
+        print("\n--- Crawler finalizado ---")
 
 
 if __name__ == "__main__":
-    # Executa a função principal assíncrona
     asyncio.run(main())

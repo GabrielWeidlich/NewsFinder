@@ -2,28 +2,51 @@ import asyncio
 from src.steps import *
 
 class G1():
-    def __init__(self, browser):
-        self.browser = browser
+    # ALTERAÇÃO AQUI: Recebe 'page' em vez de 'browser'
+    def __init__(self, page):
+        self.page = page # Armazena o objeto da página
         self.base_url = "https://g1.globo.com/"
-        self.links = []
+        self.news_data = [] 
         
         self.getLinksSteps = [
-            # Passo para ir para a URL principal do G1
-            GoToURLStep(browser=self.browser, url=self.base_url),
-            # Passo para pegar os links das notícias usando um seletor CSS
-            GetLinksStep(browser=self.browser, selector="a.feed-post-link") 
+            # Usa self.page em vez de self.browser
+            GoToURLStep(browser=self.page, url=self.base_url),
+            GetLinksStep(browser=self.page, selector="a.feed-post-link") 
         ]
-        self.getContentByLinks = []
-        
         
     async def run(self):
+        links = []
         for step in self.getLinksSteps:
-            if isinstance(step, GetLinksStep): #trocar get links para a classe que vai pegar os links
-                self.links = await step.run()
-            else:
-                await step.run()
+            result = await step.run()
+            if isinstance(step, GetLinksStep):
+                links = result 
                 
-        print(f"Links encontrados: {self.links}")
-        # for step in self.getContentByLinks:
-        #     await step.run()
+        print(f"Total de links coletados: {len(links)}")
+        
+        for i, link in enumerate(links, 1):
+            if not link:
+                continue
             
+            print(f"\nProcessando notícia {i}/{len(links)}: {link}")
+            
+            try:
+                go_to_news_step = GoToURLStep(browser=self.page, url=link)
+                await go_to_news_step.run()
+                get_content_step = GetContentStep(
+                    browser=self.page,
+                    title_selector="h1.content-head__title",
+                    content_selector="p.content-text__container"
+                )
+                content_data = await get_content_step.run()
+                
+                if content_data:
+                    content_data['link'] = link
+                    self.news_data.append(content_data)
+                
+            except Exception as e:
+                print(f"Erro ao processar a notícia: {e}")
+    
+                
+        
+        
+        
