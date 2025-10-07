@@ -45,8 +45,3 @@ class G1():
                 
             except Exception as e:
                 print(f"Erro ao processar a notícia: {e}")
-    
-                
-        
-        
-        

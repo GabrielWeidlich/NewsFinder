@@ -3,9 +3,10 @@ import pyppeteer
 import traceback
 from sqlalchemy.exc import IntegrityError
 
-from src.strategies.g1_strategy import G1
+# A importação direta do G1 não é mais necessária, o Manager cuida disso
 from src.database.setup import get_db
 from src.database.models.news import News
+from src.strategies.strategy_manager import StrategyManager
 
 async def main():
     """
@@ -13,6 +14,10 @@ async def main():
     """
     browser = None
     db_session = next(get_db())
+    
+    # CORREÇÃO 1: Declarar as variáveis aqui para garantir que existem no bloco 'finally'
+    saved_count = 0
+    all_news_data = []
     
     try:
         print("A conectar-se ao browser remoto...")
@@ -23,56 +28,50 @@ async def main():
 
         page = await browser.newPage()
         
-        # 1. Executa a estratégia de crawling para o G1
-        g1_strategy = G1(page)
-        await g1_strategy.run()
+        strategy_manager = StrategyManager(page)
+        await strategy_manager.run_all()
         
-        # --- CÓDIGO CORRIGIDO E DESCOMENTADO ABAIXO ---
-
-        # Aceder aos dados recolhidos pela estratégia
-        news_list_data = g1_strategy.news_data
+        all_news_data = strategy_manager.all_news_data
         
-        if not news_list_data:
-            print("Nenhuma notícia foi extraída com sucesso.")
-            return
-
-        # 2. Salva as notícias no banco de dados
-        print("\n--- A salvar no Banco de Dados ---")
-        saved_count = 0
-        for news_data in news_list_data:
-            # Cria um objeto News com o título, link e resumo extraídos
-            news_article = News(
-                title=news_data.get("title", "Título não encontrado"), 
-                link=news_data.get("link"),
-                summary=news_data.get("content", "")
-            )
-            
-            try:
-                db_session.add(news_article)
-                db_session.commit()
-                db_session.refresh(news_article)
-                saved_count += 1
-            except IntegrityError:
-                # Ignora erros de links duplicados e continua
-                db_session.rollback()
-            except Exception as e:
-                print(f"Erro ao salvar notícia {news_data.get('link')}: {e}")
-                db_session.rollback()
-
-        print(f"\n--- {saved_count} novas notícias salvas com sucesso! ---")
-
+        if not all_news_data:
+            print("Nenhuma notícia coletada.")
+            # return não é ideal aqui, pois queremos que o 'finally' execute corretamente
+        else:
+            print(f"\nA salvar {len(all_news_data)} notícias no banco de dados...")
+            for news in all_news_data:
+                try:
+                    # CORREÇÃO 2: Usar o método .get() para aceder ao dicionário
+                    # CORREÇÃO 3: Usar 'summary' em vez de 'content' para corresponder ao modelo
+                    news_entry = News(
+                        title=news.get('title', "Título não disponível"),
+                        summary=news.get('content', ""), # O GetContentStep retorna 'content', mas guardamos em 'summary'
+                        link=news.get('link')
+                    )
+                    
+                    if news_entry.link: # Garante que não tenta salvar notícias sem link
+                        db_session.add(news_entry)
+                        db_session.commit()
+                        saved_count += 1
+                    
+                except IntegrityError:
+                    db_session.rollback()
+                    # A mensagem foi removida para não poluir o log com notícias que já existem
+                except Exception as e:
+                    db_session.rollback()
+                    print(f"Erro ao salvar notícia: {e}")
+                    
     except Exception as e:
         print(f"\nOcorreu um erro ao executar o crawler: {e}")
         print(traceback.format_exc())
-        
+
     finally:
-        # 3. Fecha os recursos
         if browser:
-            await browser.disconnect() # Usa disconnect para o browser remoto
+            await browser.disconnect()
         if db_session:
             db_session.close()
         print("\n--- Crawler finalizado ---")
-
-
+        # Agora esta linha funcionará sempre, mesmo que ocorra um erro
+        print(f"Total de notícias salvas nesta execução: {saved_count}")
+        
 if __name__ == "__main__":
     asyncio.run(main())
