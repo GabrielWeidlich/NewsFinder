@@ -1,6 +1,7 @@
 from .g1_strategy import G1
 from .cnn_strategy import CNN
 from .portal6_strategy import Portal6
+from .terra_strategy import Terra
 
 class StrategyManager:
     def __init__(self, page):
@@ -8,6 +9,7 @@ class StrategyManager:
         self.strategies = {
             "G1": G1(self.page),
             "Portal6": Portal6(self.page),
+            "Terra": Terra(self.page),
             "CNN": CNN(self.page)
         }
         self.all_news_data = []
